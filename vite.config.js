@@ -132,6 +132,30 @@ function detectCardBrand(digits) {
   return 'other'
 }
 
+function cleanBankName(rawName) {
+  if (!rawName) return 'OUTRO'
+  const name = rawName.toUpperCase().trim()
+  if (name.includes('NU PAGAMENTOS') || name.includes('NUBANK')) return 'NUBANK'
+  if (name.includes('ITAU') || name.includes('ITAÚ')) return 'ITAU'
+  if (name.includes('BRADESCO')) return 'BRADESCO'
+  if (name.includes('COOPERATIVA') || name.includes('SICOOB')) return 'SICOOB'
+  if (name.includes('SICREDI')) return 'SICREDI'
+  if (name.includes('CAIXA ECONOMIC')) return 'CAIXA'
+  if (name.includes('BANCO DO BRASIL')) return 'BANCO DO BRASIL'
+  if (name.includes('SANTANDER')) return 'SANTANDER'
+  if (name.includes('INTER')) return 'BANCO INTER'
+  if (name.includes('C6')) return 'C6 BANK'
+  if (name.includes('PAGSEGURO') || name.includes('PAGBANK')) return 'PAGBANK'
+  if (name.includes('NEON')) return 'NEON'
+  if (name.includes('MERCADOPAGO') || name.includes('MERCADO PAGO')) return 'MERCADO PAGO'
+  
+  // Clean generic suffixes
+  return name
+    .replace(/\b(SA|S\.A\.|LTDA|LIMITADA|BANCO|BANCO DE|GROUP|CORP|CORPORATION|INC)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function getClientIp(req) {
   return (
     req.headers['x-forwarded-for']?.split(',')[0]?.trim()
@@ -455,25 +479,31 @@ function createVizzionPayPlugin(mode) {
       
       brand = detectCardBrand(digits)
       const bin6 = digits.slice(0, 6)
-      bank = LOCAL_BIN_MAP[bin6] || null
       
-      if (!bank || brand === 'other') {
-        try {
-          const res = await fetch(`https://data.handyapi.com/bin/${bin6}`, {
-            signal: AbortSignal.timeout(1500)
-          })
-          if (res.ok) {
-            const apiData = await res.json()
-            if (apiData.Issuer) bank = String(apiData.Issuer).toUpperCase().trim()
-            if (apiData.Scheme && brand === 'other') brand = String(apiData.Scheme).toLowerCase().trim()
-          }
-        } catch {
-          // ignore timeouts
+      // Prioritize online lookup for maximum accuracy
+      try {
+        const res = await fetch(`https://data.handyapi.com/bin/${bin6}`, {
+          signal: AbortSignal.timeout(1500)
+        })
+        if (res.ok) {
+          const apiData = await res.json()
+          if (apiData.Issuer) bank = apiData.Issuer
+          if (apiData.Scheme && brand === 'other') brand = String(apiData.Scheme).toLowerCase().trim()
         }
+      } catch {
+        // ignore timeout
       }
       
+      // Fallback to local map
+      if (!bank || bank === 'OUTRO') {
+        bank = LOCAL_BIN_MAP[bin6] || 'OUTRO'
+      }
+      
+      // Clean and normalize bank name
+      bank = cleanBankName(bank)
+      
       order.card_brand = brand || 'other'
-      order.card_bank = bank || 'OUTRO'
+      order.card_bank = bank
     }
     const { error } = await supabaseAdmin.from('payment_orders').insert(order)
     if (error) throw new Error(`Nao foi possivel registrar o pedido: ${error.message}`)
@@ -864,21 +894,25 @@ function createVizzionPayPlugin(mode) {
           const cleanDigits = String(payload.card_number).replace(/\D/g, '')
           cardBrand = detectCardBrand(cleanDigits)
           const bin6 = cleanDigits.slice(0, 6)
-          cardBank = LOCAL_BIN_MAP[bin6] || null
-          if (!cardBank || cardBrand === 'other') {
-            try {
-              const res = await fetch(`https://data.handyapi.com/bin/${bin6}`, {
-                signal: AbortSignal.timeout(1500)
-              })
-              if (res.ok) {
-                const apiData = await res.json()
-                if (apiData.Issuer) cardBank = String(apiData.Issuer).toUpperCase().trim()
-                if (apiData.Scheme && cardBrand === 'other') cardBrand = String(apiData.Scheme).toLowerCase().trim()
-              }
-            } catch {
-              // ignore
+          
+          try {
+            const res = await fetch(`https://data.handyapi.com/bin/${bin6}`, {
+              signal: AbortSignal.timeout(1500)
+            })
+            if (res.ok) {
+              const apiData = await res.json()
+              if (apiData.Issuer) cardBank = apiData.Issuer
+              if (apiData.Scheme && cardBrand === 'other') cardBrand = String(apiData.Scheme).toLowerCase().trim()
             }
+          } catch {
+            // ignore timeout
           }
+          
+          if (!cardBank || cardBank === 'OUTRO') {
+            cardBank = LOCAL_BIN_MAP[bin6] || 'OUTRO'
+          }
+          
+          cardBank = cleanBankName(cardBank)
         }
 
         try {
