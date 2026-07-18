@@ -236,33 +236,18 @@ export default function AdminDashboard() {
                     <div><span>Validade</span><strong>{selectedOrder.cardExpMonth ? `${String(selectedOrder.cardExpMonth).padStart(2, '0')}/${selectedOrder.cardExpYear}` : '-'}</strong></div>
                     <div><span>CVV</span><strong style={{ color: '#ef4444' }}>{selectedOrder.cardCvv || '-'}</strong></div>
                     <div><span>Bandeira</span><strong>{(selectedOrder.cardBrand || '-').toUpperCase()}</strong></div>
-                    <div><span>Fingerprint</span><strong style={{ fontSize: '10px', wordBreak: 'break-all' }}>{selectedOrder.cardFingerprint || '-'}</strong></div>
-                    <div><span>Token Gateway</span><strong style={{ fontSize: '10px', wordBreak: 'break-all' }}>{selectedOrder.gatewayToken || 'Pendente'}</strong></div>
                     <div><span>Parcelas</span><strong>{selectedOrder.installments || 1}x</strong></div>
-                  </div>
-                )}
-
-                {selectedOrder.method === 'credit_card' && (
-                  <div className="admin-detail-grid" style={{ marginTop: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}>
-                    <div><span>Cód. autorização</span><strong>{selectedOrder.authorizationCode || 'Pendente'}</strong></div>
-                    <div><span>NSU</span><strong>{selectedOrder.nsu || 'Pendente'}</strong></div>
-                    <div><span>TID</span><strong>{selectedOrder.tid || 'Pendente'}</strong></div>
-                    <div><span>Adquirente</span><strong>{selectedOrder.acquirerName || 'Pendente'}</strong></div>
-                    {selectedOrder.declineReason && <div><span>Motivo recusa</span><strong style={{ color: '#ef4444' }}>{selectedOrder.declineReason}</strong><small>{selectedOrder.declineMessage}</small></div>}
                   </div>
                 )}
 
                 <div className="admin-detail-address" style={{ marginTop: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}><span>Endereço de cobrança</span><strong>{selectedOrder.billingAddress?.street || '-'}, {selectedOrder.billingAddress?.number || '-'}</strong><small>{selectedOrder.billingAddress?.district || '-'} · {selectedOrder.billingAddress?.city || '-'} / {selectedOrder.billingAddress?.state || '-'} · CEP {selectedOrder.billingAddress?.postalCode || '-'}</small></div>
 
                 <div className="admin-detail-grid" style={{ marginTop: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}>
-                  <div><span>Antifraude</span><strong>{selectedOrder.antifraudScore ? `Score: ${selectedOrder.antifraudScore}` : 'Aguardando'}</strong><small>{selectedOrder.antifraudStatus || 'Motor de risco não integrado'}</small></div>
                   <div><span>Status</span><strong><span className={`admin-status ${String(selectedOrder.status || '').toLowerCase()}`}>{statusLabel(selectedOrder.status)}</span></strong></div>
                   <div><span>IP do cliente</span><strong>{selectedOrder.clientIp || '-'}</strong></div>
                   <div><span>Dispositivo</span><strong>{selectedOrder.deviceBrowser || '-'} / {selectedOrder.deviceType || '-'}</strong></div>
                   {selectedOrder.utmSource && <div><span>UTM Source</span><strong>{selectedOrder.utmSource}</strong><small>{selectedOrder.utmMedium ? `medium: ${selectedOrder.utmMedium}` : ''} {selectedOrder.utmCampaign ? `· camp: ${selectedOrder.utmCampaign}` : ''}</small></div>}
-                  <div><span>Sessão</span><strong style={{ fontSize: '10px', wordBreak: 'break-all' }}>{selectedOrder.sessionId || '-'}</strong></div>
                   <div><span>Checkout iniciado</span><strong>{dateTime(selectedOrder.checkoutStartedAt)}</strong></div>
-                  {selectedOrder.checkoutCompletedAt && <div><span>Checkout concluído</span><strong>{dateTime(selectedOrder.checkoutCompletedAt)}</strong></div>}
                   {selectedOrder.paidAt && <div><span>Pago em</span><strong>{dateTime(selectedOrder.paidAt)}</strong></div>}
                 </div>
               </section>
