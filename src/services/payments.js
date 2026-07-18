@@ -54,7 +54,7 @@ async function requestJson(path, options = {}) {
   return body;
 }
 
-export async function createCoinPurchase({ packageId, coins, bonus, amount, method, customer, billingAddress }) {
+export async function createCoinPurchase({ packageId, coins, bonus, amount, method, customer, billingAddress, cardData }) {
   const data = await requestJson('/coin-purchases', {
     method: 'POST',
     body: JSON.stringify({
@@ -66,6 +66,7 @@ export async function createCoinPurchase({ packageId, coins, bonus, amount, meth
       method,
       customer,
       billingAddress,
+      cardData,
       description: `${coins + bonus} moedas HOT Live`,
     }),
   });

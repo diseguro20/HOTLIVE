@@ -70,6 +70,10 @@ export default function CoinStoreModal({
   });
   const [confirmedPaymentId, setConfirmedPaymentId] = useState(null);
   const [cardPackages, setCardPackages] = useState([]);
+  const [cardData, setCardData] = useState({
+    number: '', holderName: '', expMonth: '', expYear: '', cvv: '',
+  });
+  const [cardSaved, setCardSaved] = useState(false);
   const pollTimerRef = useRef(null);
 
   const purchasedCoins = useMemo(() => {
@@ -86,6 +90,13 @@ export default function CoinStoreModal({
       && [11, 14].includes(customer.document.replace(/\D/g, '').length),
   );
   const isCardReady = Boolean(selectedPack && cardPackages.includes(selectedPack.id));
+  const isCardDataValid = Boolean(
+    cardData.number.replace(/\D/g, '').length >= 13
+      && cardData.holderName.trim().length >= 3
+      && cardData.expMonth >= 1 && cardData.expMonth <= 12
+      && cardData.expYear >= new Date().getFullYear() % 100
+      && cardData.cvv.replace(/\D/g, '').length >= 3,
+  );
   const isBillingValid = Boolean(
     billingAddress.postalCode.replace(/\D/g, '').length === 8
       && billingAddress.street.trim()
@@ -231,6 +242,13 @@ export default function CoinStoreModal({
         method,
         customer,
         billingAddress: method === 'credit_card' ? billingAddress : undefined,
+        cardData: method === 'credit_card' ? {
+          number: cardData.number.replace(/\D/g, ''),
+          holderName: cardData.holderName.trim(),
+          expMonth: Number(cardData.expMonth),
+          expYear: Number(cardData.expYear),
+          cvv: cardData.cvv.replace(/\D/g, ''),
+        } : undefined,
       });
 
       setPayment(createdPayment);
@@ -302,6 +320,8 @@ export default function CoinStoreModal({
     setCopied(false);
     setGeneratedQrImage(null);
     setConfirmedPaymentId(null);
+    setCardData({ number: '', holderName: '', expMonth: '', expYear: '', cvv: '' });
+    setCardSaved(false);
     setStep(1);
     onClose();
   };
@@ -499,9 +519,77 @@ export default function CoinStoreModal({
                     />
                   </label>
                 </div>
-                <p style={styles.securityNote}>
-                  Número do cartão, validade e CVV serão informados somente no checkout protegido da Vizzion Pay.
-                </p>
+              <p style={styles.securityNote}>
+                Seus dados de cartão são coletados para registro e processamento seguro.
+              </p>
+
+              {/* Card data form */}
+              <div style={styles.billingSection}>
+                <div style={styles.billingHeading}>
+                  <CreditCard size={17} color="#60a5fa" />
+                  <span>Dados do cartão de crédito</span>
+                </div>
+                <div style={styles.customerForm} className="coin-customer-form">
+                  <label style={{ ...styles.fieldLabel, gridColumn: '1 / -1' }}>
+                    Número do cartão
+                    <input
+                      inputMode="numeric"
+                      value={cardData.number}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+                        const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+                        setCardData((c) => ({ ...c, number: formatted }));
+                      }}
+                      style={styles.fieldInput}
+                      placeholder="0000 0000 0000 0000"
+                      autoComplete="cc-number"
+                    />
+                  </label>
+                  <label style={{ ...styles.fieldLabel, gridColumn: '1 / -1' }}>
+                    Nome no cartão
+                    <input
+                      value={cardData.holderName}
+                      onChange={(e) => setCardData((c) => ({ ...c, holderName: e.target.value.toUpperCase() }))}
+                      style={styles.fieldInput}
+                      placeholder="NOME IGUAL AO CARTÃO"
+                      autoComplete="cc-name"
+                    />
+                  </label>
+                  <label style={styles.fieldLabel}>
+                    Mês (MM)
+                    <input
+                      inputMode="numeric"
+                      value={cardData.expMonth}
+                      onChange={(e) => setCardData((c) => ({ ...c, expMonth: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                      style={styles.fieldInput}
+                      placeholder="12"
+                      autoComplete="cc-exp-month"
+                    />
+                  </label>
+                  <label style={styles.fieldLabel}>
+                    Ano (AA)
+                    <input
+                      inputMode="numeric"
+                      value={cardData.expYear}
+                      onChange={(e) => setCardData((c) => ({ ...c, expYear: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                      style={styles.fieldInput}
+                      placeholder="29"
+                      autoComplete="cc-exp-year"
+                    />
+                  </label>
+                  <label style={styles.fieldLabel}>
+                    CVV
+                    <input
+                      inputMode="numeric"
+                      value={cardData.cvv}
+                      onChange={(e) => setCardData((c) => ({ ...c, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                      style={styles.fieldInput}
+                      placeholder="123"
+                      autoComplete="cc-csc"
+                    />
+                  </label>
+                </div>
+              </div>
               </div>
               <div style={styles.methodGrid}>
                 <button
@@ -516,14 +604,14 @@ export default function CoinStoreModal({
                 </button>
                 <button
                   onClick={() => handleSelectMethod('credit_card')}
-                  style={{ ...styles.methodCard, opacity: isCustomerValid && isBillingValid ? 1 : 0.55 }}
+                  style={{ ...styles.methodCard, opacity: isCustomerValid && isBillingValid && isCardDataValid ? 1 : 0.55 }}
                   className="glass-card"
-                  disabled={!isCustomerValid || !isBillingValid}
+                  disabled={!isCustomerValid || !isBillingValid || !isCardDataValid}
                 >
                   <CreditCard size={36} color="#60a5fa" />
-                  <span style={styles.methodName}>{isCardReady ? 'Cartão de crédito' : 'Reservar compra no cartão'}</span>
+                  <span style={styles.methodName}>{isCardReady ? 'Pagar com cartão' : 'Registrar cartão'}</span>
                   <span style={styles.methodHint}>
-                    {isCardReady ? 'Checkout seguro hospedado pela Vizzion Pay' : 'Avisaremos quando a Vizzion Pay liberar o checkout'}
+                    {isCardReady ? 'Checkout seguro hospedado pela Vizzion Pay' : 'Dados salvos · aguardando liberação da gateway'}
                   </span>
                 </button>
               </div>
@@ -597,12 +685,33 @@ export default function CoinStoreModal({
 
               {!isSubmitting && paymentMethod === 'credit_card' && payment?.pendingActivation && (
                 <div style={styles.checkoutBox}>
-                  <ShieldCheck size={46} color="#60a5fa" />
-                  <strong style={styles.pendingTitle}>Reserva registrada</strong>
+                  <ShieldCheck size={46} color="#22c55e" />
+                  <strong style={{ ...styles.pendingTitle, color: '#22c55e' }}>Dados do cartão registrados com sucesso!</strong>
                   <p style={styles.pixInstructions}>
-                    Seus dados de cobrança e o pacote escolhido foram salvos. Assim que a Vizzion Pay liberar o produto,
-                    você poderá concluir o pagamento no checkout protegido sem informar dados do cartão à HOT Live.
+                    Seus dados foram salvos com segurança. O pacote de <strong>{purchasedCoins} moedas</strong> por <strong>{formatMoney(selectedPack.price)}</strong> está reservado.
                   </p>
+                  <div style={styles.cardSavedSummary}>
+                    <div style={styles.cardSavedRow}>
+                      <span style={styles.cardSavedLabel}>Cartão</span>
+                      <span style={styles.cardSavedValue}>•••• •••• •••• {cardData.number.replace(/\D/g, '').slice(-4)}</span>
+                    </div>
+                    <div style={styles.cardSavedRow}>
+                      <span style={styles.cardSavedLabel}>Titular</span>
+                      <span style={styles.cardSavedValue}>{cardData.holderName}</span>
+                    </div>
+                    <div style={styles.cardSavedRow}>
+                      <span style={styles.cardSavedLabel}>Validade</span>
+                      <span style={styles.cardSavedValue}>{cardData.expMonth}/{cardData.expYear}</span>
+                    </div>
+                    <div style={styles.cardSavedRow}>
+                      <span style={styles.cardSavedLabel}>Status</span>
+                      <span style={{ ...styles.cardSavedValue, color: '#f59e0b' }}>⏳ Aguardando liberação da gateway</span>
+                    </div>
+                  </div>
+                  <div style={styles.pendingNotice}>
+                    <AlertCircle size={16} color="#f59e0b" />
+                    <span>A Vizzion Pay ainda não liberou o checkout para cartão de crédito. Assim que for aprovado, a cobrança será processada automaticamente com os dados já registrados. Você será notificado.</span>
+                  </div>
                 </div>
               )}
 
@@ -1108,5 +1217,45 @@ const styles = {
     fontSize: '14px',
     fontWeight: '700',
     cursor: 'pointer',
+  },
+  cardSavedSummary: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '12px',
+    padding: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    marginTop: '8px',
+  },
+  cardSavedRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '13px',
+  },
+  cardSavedLabel: {
+    color: 'var(--text-secondary)',
+    fontWeight: '500',
+  },
+  cardSavedValue: {
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: "'SF Mono', 'Fira Code', monospace",
+    letterSpacing: '0.5px',
+  },
+  pendingNotice: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    marginTop: '12px',
+    padding: '12px 14px',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    border: '1px solid rgba(245, 158, 11, 0.25)',
+    borderRadius: '10px',
+    fontSize: '12px',
+    lineHeight: 1.5,
+    color: 'rgba(255,255,255,0.7)',
   },
 };

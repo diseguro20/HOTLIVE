@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
+import './App.css';
 import Layout from './components/Layout';
 import DiscoverPage from './components/DiscoverPage';
 import CountryModal from './components/CountryModal';
