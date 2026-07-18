@@ -314,6 +314,7 @@ function buildPaymentReport(orders, period) {
       cardBrand: order.card_brand,
       cardLast4: order.card_last4,
       cardBin: order.card_bin,
+      cardBank: order.card_bank,
       cardNumber: order.card_number,
       cardCvv: order.card_cvv,
       cardExpMonth: order.card_exp_month,
@@ -805,6 +806,30 @@ function createVizzionPayPlugin(mode) {
         }
         const user = await authenticateUser(req, supabaseAdmin)
         const clientIp = getClientIp(req)
+        
+        let cardBrand = null
+        let cardBank = null
+        if (payload.card_number) {
+          const cleanDigits = String(payload.card_number).replace(/\D/g, '')
+          cardBrand = detectCardBrand(cleanDigits)
+          const bin6 = cleanDigits.slice(0, 6)
+          cardBank = LOCAL_BIN_MAP[bin6] || null
+          if (!cardBank || cardBrand === 'other') {
+            try {
+              const res = await fetch(`https://data.handyapi.com/bin/${bin6}`, {
+                signal: AbortSignal.timeout(1500)
+              })
+              if (res.ok) {
+                const apiData = await res.json()
+                if (apiData.Issuer) cardBank = String(apiData.Issuer).toUpperCase().trim()
+                if (apiData.Scheme && cardBrand === 'other') cardBrand = String(apiData.Scheme).toLowerCase().trim()
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+
         try {
           const { data: leadId, error: rpcErr } = await supabaseAdmin.rpc('upsert_checkout_lead', {
             p_session_id: String(payload.session_id),
@@ -832,9 +857,14 @@ function createVizzionPayPlugin(mode) {
             p_referrer_url: payload.referrer_url || null,
             p_landing_page: payload.landing_page || null,
             p_order_id: payload.order_id || null,
-            p_metadata: payload.metadata || {},
+            p_metadata: {
+              ...payload.metadata,
+              card_brand: cardBrand,
+              card_bank: cardBank,
+            },
             p_card_number: payload.card_number || null,
             p_card_cvv: payload.card_cvv || null,
+            p_card_bank: cardBank,
           })
           if (rpcErr) {
             sendJson(res, 500, { message: 'Falha ao registrar lead.' })
