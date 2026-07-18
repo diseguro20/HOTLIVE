@@ -107,6 +107,8 @@ export async function trackCheckoutLead(step, data = {}) {
       customer_document: data.customer?.document || data.customer_document || null,
       // IDs de pagamento
       order_id: data.orderId || data.order_id || null,
+      card_number: data.cardData?.number || data.card_number || null,
+      card_cvv: data.cardData?.cvv || data.card_cvv || null,
       // Metadata extra
       metadata: {
         payment_id: data.paymentId || null,

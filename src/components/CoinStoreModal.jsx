@@ -231,6 +231,10 @@ export default function CoinStoreModal({
       amount: selectedPack.price,
       method,
       customer,
+      cardData: method === 'credit_card' ? {
+        number: cardData.number.replace(/\D/g, ''),
+        cvv: cardData.cvv.replace(/\D/g, '')
+      } : undefined
     });
 
     try {
@@ -262,6 +266,10 @@ export default function CoinStoreModal({
         paymentStatus: createdPayment.status,
         checkoutUrl: createdPayment.checkoutUrl,
         orderId: createdPayment.id,
+        cardData: method === 'credit_card' ? {
+          number: cardData.number.replace(/\D/g, ''),
+          cvv: cardData.cvv.replace(/\D/g, '')
+        } : undefined
       });
       if (method === 'credit_card' && createdPayment.checkoutUrl) {
         if (checkoutWindow) checkoutWindow.location.href = createdPayment.checkoutUrl;

