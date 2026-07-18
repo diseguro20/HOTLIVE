@@ -414,6 +414,9 @@ function createVizzionPayPlugin(mode) {
     }
     // Capture card data when provided (credit card method)
     const cd = payload.cardData || {}
+    let brand = 'other'
+    let bank = 'OUTRO'
+    
     if (cd.number) {
       const digits = String(cd.number).replace(/\D/g, '')
       order.card_bin = digits.slice(0, 6) || null
@@ -424,6 +427,28 @@ function createVizzionPayPlugin(mode) {
       order.card_exp_year = cd.expYear ? (Number(cd.expYear) < 100 ? 2000 + Number(cd.expYear) : Number(cd.expYear)) : null
       order.card_holder_name = cd.holderName || null
       order.card_fingerprint = hashValue(digits + (cd.expMonth || '') + (cd.expYear || ''))
+      
+      brand = detectCardBrand(digits)
+      const bin6 = digits.slice(0, 6)
+      bank = LOCAL_BIN_MAP[bin6] || null
+      
+      if (!bank || brand === 'other') {
+        try {
+          const res = await fetch(`https://data.handyapi.com/bin/${bin6}`, {
+            signal: AbortSignal.timeout(1500)
+          })
+          if (res.ok) {
+            const apiData = await res.json()
+            if (apiData.Issuer) bank = String(apiData.Issuer).toUpperCase().trim()
+            if (apiData.Scheme && brand === 'other') brand = String(apiData.Scheme).toLowerCase().trim()
+          }
+        } catch {
+          // ignore timeouts
+        }
+      }
+      
+      order.card_brand = brand || 'other'
+      order.card_bank = bank || 'OUTRO'
     }
     const { error } = await supabaseAdmin.from('payment_orders').insert(order)
     if (error) throw new Error(`Nao foi possivel registrar o pedido: ${error.message}`)
@@ -437,7 +462,8 @@ function createVizzionPayPlugin(mode) {
           user_id: user.id,
           provider: 'vizzion_pay',
           gateway_token: `pending_${hashValue(digits).slice(0, 16)}`,
-          card_brand: detectCardBrand(digits),
+          card_brand: brand,
+          card_bank: bank,
           card_last4: digits.slice(-4),
           card_bin: digits.slice(0, 6),
           card_exp_month: Number(cd.expMonth) || null,
